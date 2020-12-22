@@ -11,7 +11,7 @@
 
 <pre>
 <code>
-<span style="color:green">SELECT</span> region.*
+SELECT region.*
 FROM region
 INNER JOIN address_polygon on region.pk=address_polygon.region_pk
 INNER JOIN address on address_polygon.address_pk=address.pk
@@ -24,5 +24,4 @@ AND st_intersects(
 );
 </code>
 </pre>
-<span style="color:red">색상</span>  
-<span style="color:red"> *색상*</span>
+
