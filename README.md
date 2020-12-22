@@ -54,4 +54,47 @@ R-tree의 인덱싱 방법은 B-tree와 유사한데, polygon 데이터들의 �
   [사진이다]
 </p>
 
-이 권역 서비스는 처음부터 프로젝트에 involve된게 아니었기 때문에 위의 문제의 쿼리1을 만났을때는 쿼리2를 테스트 해보지 않았습니다. 따라서 천만개의 row에 대해서 intersects를 모두 계산한다고 생각해서 어떻게 해도 빠르게 할 수 있는 방법이 없다고 생각했습니다. 따라서 모든 폴리곤을 메모리에 올리고 최적화된 알고리즘을 구현해야겠다는 생각하면서 찾아보다가 R-tree에 대해서 알게되었습니다. R-tree 성능에 대해서 Python으로 구현해보고 충분히 빠른것을 확인했습니다. Python에서는 R-tree의 구현을 ctypes를 이용해 libspatialindex를 래핑한 [라이브러리](https://pypi.org/project/Rtree/)를 찾을 수 있었습니다.
+이 권역 서비스는 처음부터 프로젝트에 involve된게 아니었기 때문에 위의 문제의 쿼리1을 만났을때는 쿼리2를 테스트 해보지 않았습니다. 따라서 천만개의 row에 대해서 intersects를 모두 계산한다고 생각해서 어떻게 해도 빠르게 할 수 있는 방법이 없다고 생각했습니다. 따라서 모든 폴리곤을 메모리에 올리고 최적화된 알고리즘을 구현해야겠다는 생각하면서 찾아보다가 R-tree에 대해서 알게되었습니다. R-tree 성능에 대해서 Python으로 구현해보고 충분히 빠른것을 확인했습니다. Python에서는 R-tree의 구현을 ctypes를 이용해 libspatialindex를 래핑한 [라이브러리](https://pypi.org/project/Rtree/)를 찾을 수 있었습니다.    
+
+그래서 PostGIS는 이런거 지원 안하나 싶어서 찾아보게 되었는데 PostGIS도 R-tree와 같은 bounding box indexing을 지원한다는 것을 알게되고 심지어 해당 인덱싱이 위의 쿼리에 `polygon` 컬럼에 적용되어 있는것을 확인했습니다.    
+
+정확히는 PostGIS는 R-Tree라는 이름으로 사용하지 않고 [GIST](https://postgis.net/workshops/postgis-intro/indexing.html) 라는 이름으로 index 방법을 제공하고 있는것을 알게되었습니다. 그리고 위 GIST의 링크를 읽어보면 나와 있는데, bounding box간의 연산을 위해서 postgresql에서는 [특수한 연산자](https://postgis.net/docs/reference.html#idm9871)를 따로 지원하고 있습니다. 또한 st_intersects는 이미 내부에서 `&&` 연산자를 통해서 bounding box간의 연산을 하고 `AND` 조건으로 실제 polygon이 intersects 하는 가 판단한다는 것을 알게되었습니다. 이 사실을 알고 위 쿼리 2를 작성해서 쿼리해보고 0.5초의 성능이면 1분에 비해서는 성능이 엄청나게 좋은 성능이 나온다는것을 알게되어서 어떻게 이정도의 차이를 갖게 되는지 좀 더 정확히 알아보고자 `explain analyze`를 해보게 되었습니다.    
+
+<pre>
+<code>
+Index Scan using polygon_geom_idx on region  (cost=0.42..513509.60 rows=... width=...) (actual time=0.136..515.878 rows=... loops=1)
+    Index Cond: (polygon && '...'::geometry)
+    Filter: _st_intersects(polygon, '...'::geometry)
+    Rows Removed by Filter: 383
+Planning Time: 0.244 ms
+Execution Time: 522.464 ms
+</code>
+</pre>
+위 explain 결과를 보면 index condition으로 `polygon column` 과 `&&` 연산을 통해서 bounding box를 주어진 polygon 데이터와 비교하고 후에 filter 조건으로 _st_intersects를 사용하는것을 확인할 수 있습니다.    
+
+### 그러면 문제는 어디서 발생하는걸까?    
+
+그러면 문제가 된 쿼리 1은 도대체 무슨 문제가 있었던 것인지 싶어서 해당 쿼리도 `explain analyze`를 돌려보았습니다.     
+<pre>
+<code>
+Gather  (cost=1080.01..67698.36 rows=... width=1894) (actual time=117.101..66590.220 rows=... loops=1)
+  Workers Planned: 1
+  Workers Launched: 1
+  ->  Nested Loop  (cost=80.01..66697.06 rows=8 width=1894) (actual time=66.379..65641.273 rows=134 loops=2)
+        ->  Nested Loop  (cost=79.58..51221.10 rows=1996 width=8) (actual time=63.748..5975.698 rows=401872 loops=2)
+              ->  Parallel Bitmap Heap Scan on address  (cost=79.14..10717.49 rows=1714 width=8) (actual time=57.163..61.659 rows=2526 loops=2)
+                    Recheck Cond: ((address_type)::text = 'LEGAL'::text)
+                    Heap Blocks: exact=107
+                    ->  Bitmap Index Scan on address_address_type_index  (cost=0.00..78.42 rows=2914 width=0) (actual time=100.710..100.710 rows=5504 loops=1)
+                          Index Cond: ((address_type)::text = 'LEGAL'::text)
+              ->  Index Only Scan using address_polygon_pkey on address_polygon  (cost=0.43..23.23 rows=40 width=16) (actual time=0.579..2.307 rows=159 loops=5052)
+                    Index Cond: (address_pk = address.pk)
+                    Heap Fetches: 304308
+        ->  Index Scan using region_primary_key on region  (cost=0.43..7.75 rows=1 width=1894) (actual time=0.147..0.147 rows=0 loops=803744)
+              Index Cond: (pk = address_polygon.region_pk)
+              Filter: ((optimized_polygon_30 && '...'::geometry) AND ((region_type)::text = 'ADDRESS_REGION'::text) AND ((status)::text = 'ENABLED'::text) AND _st_intersects(optimized_polygon_30, '...'::geometry)
+              Rows Removed by Filter: 1
+Planning Time: 3.403 ms
+Execution Time: 66590.472 ms
+</code>
+</pre>
