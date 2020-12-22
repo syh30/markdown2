@@ -7,3 +7,18 @@
 
 권역 시스템에서는 spatial data를 효율적으로 다루기 위해서 PostgreSQL에서 지원하는 PostGIS를 이용하고 있습니다. 여러가지 성능 문제가 있었지만 대부분의 경우는 가벼운 문제들이었습니다. 다만 지도 화면에서 보이는 영역과 행정동/법정동 polygon의 intersects를 계산하고 polygon을 가져오는 문제는 큰 성능 이슈를 갖고 있었습니다. worst case에서는 조회시간이 60초 정도 걸렸습니다. 문제가 되는 성능이 떨어지는 쿼리는 아래와 같았습니다.   
 
+<pre>
+<code>
+SELECT region.*
+FROM region
+INNER JOIN address_polygon on region.pk=address_polygon.region_pk
+INNER JOIN address on address_polygon.address_pk=address.pk
+WHERE address.address_type = 'LEGAL'
+AND region.region_type = 'ADDRESS_REGION'
+AND region.status = 'ENABLED'
+AND st_intersects(
+    region.polygon,
+    ST_MakeEnvelope(126.9373539, 37.5210172, 127.0540836, 37.5873607, 4326)
+);
+</code>
+</pre>
