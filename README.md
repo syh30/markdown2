@@ -28,4 +28,6 @@ AND st_intersects(
 
 이 글은 이 문제를 어떻게 해결할 수 있는가 방법에 대한 과정과 최대 1만배 성능을 튜닝한 이야기입니다.  
 
-### Spatial data의 intersects의 계산 방법
+### Spatial data의 intersects의 계산 방법   
+      
+문제 상황에서 사용하는 spatial data는 2d의 polygon 입니다. 그리고 intersects는 두개의 polygon이 겹치는지를 판단하는 연산을 의미합니다. 이를 postgresql에서는 아래와 같이 사용합니다.
