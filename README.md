@@ -32,15 +32,13 @@ AND st_intersects(
       
 문제 상황에서 사용하는 spatial data는 2d의 polygon 입니다. 그리고 intersects는 두개의 polygon이 겹치는지를 판단하는 연산을 의미합니다. 이를 postgresql에서는 아래와 같이 사용합니다.    
 
-<pre>
-<code>
+```java
 SELECT * FROM region WHERE region
 AND st_intersects(
     region.polygon,
     ST_MakeEnvelope(126.9373539, 37.5210172, 127.0540836, 37.5873607, 4326)
 );
-</code>
-</pre>
+```
 **[쿼리2]**    
 
 위 쿼리는 region 테이블의 polygon 컬럼과 서울 종로구 부근의 영역을 비교하여 겹치는 영역이 있는가를 조건으로 select 합니다. 약 천만개의 row가 있는 region 테이블에서도 0.5초내외의 성능을 보여주면서 의외로 빠른 성능을 보여줍니다. intersects 연산이 단순하게 생각하면 무거운 연산일거라 추측할 수 있습니다. 이 쿼리가 어떻게 빠르게 동작할 수 있는것인지 의문이 드는데, 이게 가능한 방법이 있습니다. [R-Tree](https://en.wikipedia.org/wiki/R-tree)라는 자료구조를 사용한 index 구조를 통해 계산하면 intersects 계산을 빠르게 할 수 있다고 합니다.    
@@ -60,23 +58,20 @@ R-tree의 인덱싱 방법은 B-tree와 유사한데, polygon 데이터들의 �
 
 정확히는 PostGIS는 R-Tree라는 이름으로 사용하지 않고 [GIST](https://postgis.net/workshops/postgis-intro/indexing.html) 라는 이름으로 index 방법을 제공하고 있는것을 알게되었습니다. 그리고 위 GIST의 링크를 읽어보면 나와 있는데, bounding box간의 연산을 위해서 postgresql에서는 [특수한 연산자](https://postgis.net/docs/reference.html#idm9871)를 따로 지원하고 있습니다. 또한 st_intersects는 이미 내부에서 `&&` 연산자를 통해서 bounding box간의 연산을 하고 `AND` 조건으로 실제 polygon이 intersects 하는 가 판단한다는 것을 알게되었습니다. 이 사실을 알고 위 쿼리 2를 작성해서 쿼리해보고 0.5초의 성능이면 1분에 비해서는 성능이 엄청나게 좋은 성능이 나온다는것을 알게되어서 어떻게 이정도의 차이를 갖게 되는지 좀 더 정확히 알아보고자 `explain analyze`를 해보게 되었습니다.    
 
-<pre>
-<code>
+```xml
 Index Scan using polygon_geom_idx on region  (cost=0.42..513509.60 rows=... width=...) (actual time=0.136..515.878 rows=... loops=1)
     Index Cond: (polygon && '...'::geometry)
     Filter: _st_intersects(polygon, '...'::geometry)
     Rows Removed by Filter: 383
 Planning Time: 0.244 ms
 Execution Time: 522.464 ms
-</code>
-</pre>
+```
 위 explain 결과를 보면 index condition으로 `polygon column` 과 `&&` 연산을 통해서 bounding box를 주어진 polygon 데이터와 비교하고 후에 filter 조건으로 _st_intersects를 사용하는것을 확인할 수 있습니다.    
 
 ### 그러면 문제는 어디서 발생하는걸까?    
 
 그러면 문제가 된 쿼리 1은 도대체 무슨 문제가 있었던 것인지 싶어서 해당 쿼리도 `explain analyze`를 돌려보았습니다.     
-<pre>
-<code>
+```c++
 Gather  (cost=1080.01..67698.36 rows=... width=1894) (actual time=117.101..66590.220 rows=... loops=1)
   Workers Planned: 1
   Workers Launched: 1
@@ -96,5 +91,22 @@ Gather  (cost=1080.01..67698.36 rows=... width=1894) (actual time=117.101..66590
               Rows Removed by Filter: 1
 Planning Time: 3.403 ms
 Execution Time: 66590.472 ms
-</code>
-</pre>
+```
+> it is not always faster to do an index search: if the search is going to return every record in the table, traversing the index tree to get each record will actually be slower than just sequentially reading the whole table from the start.    
+
+postgresql이 경우에 따라서 index를 타는 것이 비효율적이라 판단되면 풀서치하는 방향으로 optimize하는걸 알게되었습니다. 어떤 기준으로 하는지가 불명확하고 vacuuming 해도 index를 사용할때도 있고 안할때도 있어서 단순히 vacumming으로는 일관적인 성능을 보장하기는 어렵다고 판단했습니다.    
+
+```json
+CREATE MATERIALIZED VIEW address_region_view AS
+SELECT ap.region_pk, region.polygon, ap.address_type FROM (
+    SELECT address_polygon.region_pk, address.address_type FROM address
+    LEFT JOIN address_polygon ON address.pk = address_polygon.address_pk
+    WHERE address.address_type IN ('LEGAL', ...)
+) ap
+LEFT JOIN region ON region.pk = ap.region_pk
+WHERE region.region_type = 'ADDRESS_REGION'
+AND region.status = 'ENABLED';
+
+CREATE INDEX address_region_view_idx ON address_region_view using gist(polygon);
+CREATE INDEX address_region_view_address_type_idx ON address_region_view (address_type);
+```
