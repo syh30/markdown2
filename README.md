@@ -11,7 +11,7 @@
 
 <pre>
 <code>
-<span style="color:green">SELECT region.*
+<span style="color:green">SELECT</span> region.*
 FROM region
 INNER JOIN address_polygon on region.pk=address_polygon.region_pk
 INNER JOIN address on address_polygon.address_pk=address.pk
