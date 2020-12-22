@@ -1,6 +1,9 @@
 # Spatial data를 10,000배 잘 다루게 된 방법
 [https://b.luavis.kr/server/how-to-deal-with-spatial-data](https://b.luavis.kr/server/how-to-deal-with-spatial-data)   
 
+- 이것은  
+  *연습입니당
+  
 
 
 올해 3월에 물류중점 회사 메쉬코리아로 이직하고 개인 사정도 있어서 블로그 작성을 게을리 했는데, 최근에 성능 개선한 case는 블로그 글로 작성해둘 필요가 있다고 생각되고, 이 글외에도 사내에서 공유했던 글들에 대해서도 잘 정제해서 블로그 글로 작성해야다는 생각이 들었습니다.   
@@ -119,5 +122,10 @@ Content 2 | Content 4
 
 
 | Header 1 | Header 2 | Header 3 |
-| :-------- | :--------: | --------: |
+| :--------: | :--------: | :--------: |
 | Left | Center | Right |
+
+
+<div id ="footnotes-p">각주입니다<sup>[1](#footnotes)</sup></div>
+<div id ="footnotes">[1](#footnotes-p) 각주 설명  : 설명설명</div>
+
