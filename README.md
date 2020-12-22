@@ -48,4 +48,8 @@ AND st_intersects(
 R-tree의 인덱싱 방법은 B-tree와 유사한데, polygon 데이터들의 최소한의 bounding box를 구하고 그 박스간의 포함관계를 B-tree의 형식으로 관리하는 index tree입니다. 이렇게하면 B-tree의 범위 조회와 같은 계산 방법으로 계산하면 포함관계와 교차관계(intersects)를 쉽게 계산할 수 있습니다. index search를 통해서 대충 intersects하는 polygon을 bounding box가 아닌 실제 polygon과의 intersects 연산을 한번 더 진행해서 진짜 원하는 polygon이 맞는지 한번 더 선별과정을 거칩니다.     
 ![code](/img/oskar-yildiz-cOkpTiJMGzA-unsplash.jpg) 
 <img src="/img/oskar-yildiz-cOkpTiJMGzA-unsplash.jpg" width="450px" height="400px" title="px(픽셀) 크기 설정" alt="code"></img><br/>
-img.aligncenter{display:block;margin:0 auto}
+
+<p align="center">
+  <img src="/img/oskar-yildiz-cOkpTiJMGzA-unsplash.jpg" width="450px" height="400px" title="px(픽셀) 크기 설정" alt="code"></img><br/>
+  This is an image
+</p>
