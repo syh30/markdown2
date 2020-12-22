@@ -51,5 +51,5 @@ R-tree의 인덱싱 방법은 B-tree와 유사한데, polygon 데이터들의 �
 
 <p align="center">
   <img src="/img/oskar-yildiz-cOkpTiJMGzA-unsplash.jpg" width="450px" height="400px" title="px(픽셀) 크기 설정" alt="code"></img><br/>
-  This is an image
+  [사진이다]
 </p>
