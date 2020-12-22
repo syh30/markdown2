@@ -43,7 +43,7 @@ AND st_intersects(
 </pre>
 **[쿼리2]**    
 
-위 쿼리는 region 테이블의 polygon 컬럼과 서울 종로구 부근의 영역을 비교하여 겹치는 영역이 있는가를 조건으로 select 합니다. 약 천만개의 row가 있는 region 테이블에서도 0.5초내외의 성능을 보여주면서 의외로 빠른 성능을 보여줍니다. intersects 연산이 단순하게 생각하면 무거운 연산일거라 추측할 수 있습니다. 이 쿼리가 어떻게 빠르게 동작할 수 있는것인지 의문이 드는데, 이게 가능한 방법이 있습니다. [[GitHub](https://en.wikipedia.org/wiki/R-tree)]라는 자료구조를 사용한 index 구조를 통해 계산하면 intersects 계산을 빠르게 할 수 있다고 합니다.    
+위 쿼리는 region 테이블의 polygon 컬럼과 서울 종로구 부근의 영역을 비교하여 겹치는 영역이 있는가를 조건으로 select 합니다. 약 천만개의 row가 있는 region 테이블에서도 0.5초내외의 성능을 보여주면서 의외로 빠른 성능을 보여줍니다. intersects 연산이 단순하게 생각하면 무거운 연산일거라 추측할 수 있습니다. 이 쿼리가 어떻게 빠르게 동작할 수 있는것인지 의문이 드는데, 이게 가능한 방법이 있습니다. [R-Tree](https://en.wikipedia.org/wiki/R-tree)]라는 자료구조를 사용한 index 구조를 통해 계산하면 intersects 계산을 빠르게 할 수 있다고 합니다.    
 
 R-tree의 인덱싱 방법은 B-tree와 유사한데, polygon 데이터들의 최소한의 bounding box를 구하고 그 박스간의 포함관계를 B-tree의 형식으로 관리하는 index tree입니다. 이렇게하면 B-tree의 범위 조회와 같은 계산 방법으로 계산하면 포함관계와 교차관계(intersects)를 쉽게 계산할 수 있습니다. index search를 통해서 대충 intersects하는 polygon을 bounding box가 아닌 실제 polygon과의 intersects 연산을 한번 더 진행해서 진짜 원하는 polygon이 맞는지 한번 더 선별과정을 거칩니다.     
 ![code](/img/oskar-yildiz-cOkpTiJMGzA-unsplash.jpg) 
