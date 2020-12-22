@@ -24,4 +24,5 @@ AND st_intersects(
 );
 </code>
 </pre>
-<span style="color:red">색상</span>
+<span style="color:red">색상</span>  
+<span style="color:red"> *색상*</span>
