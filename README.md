@@ -110,4 +110,4 @@ AND region.status = 'ENABLED';
 CREATE INDEX address_region_view_idx ON address_region_view using gist(polygon);
 CREATE INDEX address_region_view_address_type_idx ON address_region_view (address_type);
 ```
-[내부링크](#10)
+[내부링크](#index)
