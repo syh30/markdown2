@@ -24,4 +24,8 @@ AND st_intersects(
 );
 </code>
 </pre>
+[쿼리1]  
 
+이 글은 이 문제를 어떻게 해결할 수 있는가 방법에 대한 과정과 최대 1만배 성능을 튜닝한 이야기입니다.  
+
+### Spatial data의 intersects의 계산 방법
